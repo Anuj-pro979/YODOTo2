@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    container_name: code-editor-pro
+    ports:
+      - "5000:5000"
+    volumes:
+      # Mount workspace directory (persistent storage)
+      - ./workspace:/workspace
+      # Mount static files for development (optional)
+      - ./static:/app/static
+    environment:
+      # Change this secret key in production!
+      - SECRET_KEY=your-super-secret-key-change-this-in-production
+      - FLASK_ENV=development
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    networks:
+      - editor-network
+    # Resource limits (optional but recommended)
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+networks:
+  editor-network:
+    driver: bridge

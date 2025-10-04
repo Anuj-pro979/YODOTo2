@@ -1,0 +1,4 @@
+it uses only bash comands 
+and to see the changes we need to always click refresh
+preview is very small
+
