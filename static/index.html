@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code Editor Pro</title>
+    <link rel="stylesheet" href="https://unpkg.com/xterm@4.19.0/css/xterm.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #1e1e1e;
+            --bg-secondary: #252526;
+            --bg-tertiary: #2d2d30;
+            --border-color: #3e3e42;
+            --text-primary: #cccccc;
+            --text-secondary: #858585;
+            --accent-blue: #007acc;
+            --accent-green: #4ec9b0;
+            --accent-red: #f48771;
+            --accent-yellow: #dcdcaa;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Login Screen */
+        #login-screen {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .login-box {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .login-box h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .login-box p {
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            color: #333;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn-login {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .btn-login:hover {
+            transform: translateY(-2px);
+        }
+
+        .error-message {
+            color: #e74c3c;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+
+        .demo-info {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .demo-info strong {
+            color: #333;
+        }
+
+        /* Main Editor Layout */
+        #editor-container {
+            display: none;
+            height: 100vh;
+            flex-direction: column;
+        }
+
+        #editor-container.active {
+            display: flex;
+        }
+
+        /* Header */
+        .header {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .logo {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--accent-blue);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 6px 12px;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+        }
+
+        .btn-primary {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+        }
+
+        .btn-danger {
+            background: var(--accent-red);
+            border-color: var(--accent-red);
+        }
+
+        .user-info {
+            color: var(--text-secondary);
+            font-size: 13px;
+            margin-right: 15px;
+        }
+
+        /* Main Content */
+        .main-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* Sidebar - File Explorer */
+        .sidebar {
+            width: 250px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            padding: 12px;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+        }
+
+        .file-tree {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .file-item, .folder-item {
+            padding: 6px 8px;
+            cursor: pointer;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            user-select: none;
+        }
+
+        .file-item:hover, .folder-item:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .file-item.active {
+            background: var(--accent-blue);
+        }
+
+        .folder-icon, .file-icon {
+            font-size: 14px;
+        }
+
+        .folder-children {
+            margin-left: 16px;
+        }
+
+        .folder-item.collapsed + .folder-children {
+            display: none;
+        }
+
+        .sidebar-actions {
+            padding: 12px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .btn-small {
+            padding: 4px 8px;
+            font-size: 11px;
+            flex: 1;
+            min-width: 70px;
+        }
+
+        /* Editor Area */
+        .editor-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .tabs {
+            display: flex;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            overflow-x: auto;
+        }
+
+        .tab {
+            padding: 10px 16px;
+            border-right: 1px solid var(--border-color);
+            cursor: pointer;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+        }
+
+        .tab:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .tab.active {
+            background: var(--bg-primary);
+        }
+
+        .tab-close {
+            margin-left: 8px;
+            font-size: 16px;
+            opacity: 0.6;
+        }
+
+        .tab-close:hover {
+            opacity: 1;
+        }
+
+        .editor-wrapper {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        #monaco-editor {
+            flex: 1;
+        }
+
+        .preview-panel {
+            width: 40%;
+            border-left: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-secondary);
+        }
+
+        .preview-header {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .preview-header h3 {
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        #preview-frame {
+            flex: 1;
+            border: none;
+            background: white;
+        }
+
+        /* Terminal */
+        .terminal-panel {
+            height: 250px;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .terminal-header {
+            padding: 8px 12px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .terminal-header h3 {
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        #terminal {
+            flex: 1;
+            padding: 10px;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-primary);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--bg-tertiary);
+            border-radius: 5px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--border-color);
+        }
+
+        /* Status Bar */
+        .status-bar {
+            background: var(--accent-blue);
+            color: white;
+            padding: 4px 12px;
+            font-size: 12px;
+            display: flex;
+            justify-content: space-between;
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="login-screen">
+        <div class="login-box">
+            <h1>🚀 Code Editor Pro</h1>
+            <p>Sign in to start coding</p>
+            <form id="login-form">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="username" value="demo" required>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="password" value="demo123" required>
+                </div>
+                <button type="submit" class="btn-login">Sign In</button>
+                <div id="login-error" class="error-message"></div>
+            </form>
+            <div class="demo-info">
+                <strong>Demo Account:</strong><br>
+                Username: demo<br>
+                Password: demo123
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Editor Container -->
+    <div id="editor-container">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-left">
+                <div class="logo">⚡ Code Editor Pro</div>
+                <div class="header-actions">
+                    <button class="btn btn-primary" onclick="app.saveCurrentFile()">💾 Save</button>
+                    <button class="btn" onclick="app.runCode()">▶️ Run</button>
+                    <button class="btn" onclick="app.refreshPreview()">🔄 Preview</button>
+                </div>
+            </div>
+            <div>
+                <span class="user-info" id="user-display"></span>
+                <button class="btn btn-danger" onclick="app.logout()">Logout</button>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <div class="sidebar-header">Explorer</div>
+                <div class="file-tree" id="file-tree"></div>
+                <div class="sidebar-actions">
+                    <button class="btn btn-small" onclick="app.newFile()">📄 New</button>
+                    <button class="btn btn-small" onclick="app.newFolder()">📁 Folder</button>
+                    <button class="btn btn-small" onclick="app.refreshFiles()">🔄 Refresh</button>
+                </div>
+            </div>
+
+            <!-- Editor Area -->
+            <div class="editor-area">
+                <div class="tabs" id="tabs"></div>
+                <div class="editor-wrapper">
+                    <div id="monaco-editor"></div>
+                    <div class="preview-panel" id="preview-panel" style="display:none;">
+                        <div class="preview-header">
+                            <h3>Live Preview</h3>
+                            <button class="btn btn-small" onclick="app.togglePreview()">✕</button>
+                        </div>
+                        <iframe id="preview-frame"></iframe>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Terminal Panel -->
+        <div class="terminal-panel">
+            <div class="terminal-header">
+                <h3>Terminal</h3>
+                <div>
+                    <button class="btn btn-small" onclick="app.clearTerminal()">Clear</button>
+                </div>
+            </div>
+            <div id="terminal"></div>
+        </div>
+
+        <div class="status-bar">
+            <span id="status-left">Ready</span>
+            <span id="status-right">Line 1, Col 1</span>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+    <script src="https://unpkg.com/xterm@4.19.0/lib/xterm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.34.0/min/vs/loader.js"></script>
+    
+    <script>
+        const app = {
+            editor: null,
+            socket: null,
+            terminal: null,
+            currentFile: null,
+            openFiles: {},
+            authenticated: false
+        };
+
+        // Login functionality
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({username, password})
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    app.authenticated = true;
+                    document.getElementById('login-screen').style.display = 'none';
+                    document.getElementById('editor-container').classList.add('active');
+                    document.getElementById('user-display').textContent = `👤 ${data.username}`;
+                    await app.init();
+                } else {
+                    document.getElementById('login-error').textContent = data.error || 'Login failed';
+                }
+            } catch (error) {
+                document.getElementById('login-error').textContent = 'Connection error';
+            }
+        });
+
+        // Initialize application
+        app.init = async function() {
+            await this.initMonaco();
+            this.initTerminal();
+            this.initSocket();
+            await this.loadFiles();
+        };
+
+        // Initialize Monaco Editor
+        app.initMonaco = function() {
+            return new Promise((resolve) => {
+                require.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.34.0/min/vs' }});
+                require(['vs/editor/editor.main'], () => {
+                    app.editor = monaco.editor.create(document.getElementById('monaco-editor'), {
+                        value: '// Welcome to Code Editor Pro\n// Start coding...\n',
+                        language: 'javascript',
+                        theme: 'vs-dark',
+                        automaticLayout: true,
+                        fontSize: 14,
+                        minimap: { enabled: true },
+                        scrollBeyondLastLine: false
+                    });
+
+                    // Update cursor position
+                    app.editor.onDidChangeCursorPosition((e) => {
+                        document.getElementById('status-right').textContent = 
+                            `Line ${e.position.lineNumber}, Col ${e.position.column}`;
+                    });
+
+                    // Auto-save on change (debounced)
+                    let saveTimeout;
+                    app.editor.onDidChangeModelContent(() => {
+                        clearTimeout(saveTimeout);
+                        saveTimeout = setTimeout(() => {
+                            if (app.currentFile) {
+                                app.saveCurrentFile(true);
+                            }
+                        }, 1000);
+                    });
+
+                    resolve();
+                });
+            });
+        };
+
+        // Initialize Terminal
+        app.initTerminal = function() {
+            app.terminal = new Terminal({
+                cols: 100,
+                rows: 20,
+                theme: {
+                    background: '#1e1e1e',
+                    foreground: '#cccccc'
+                },
+                fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+                fontSize: 13,
+                convertEol: true
+            });
+            
+            app.terminal.open(document.getElementById('terminal'));
+            
+            app.terminal.onData(data => {
+                if (app.socket && app.socket.connected) {
+                    app.socket.emit('terminal.input', { input: data });
+                }
+            });
+
+            // Handle resize
+            const resizeObserver = new ResizeObserver(() => {
+                const terminalEl = document.getElementById('terminal');
+                const cols = Math.floor(terminalEl.clientWidth / 9);
+                const rows = Math.floor(terminalEl.clientHeight / 17);
+                app.terminal.resize(cols, rows);
+                if (app.socket) {
+                    app.socket.emit('terminal.resize', { cols, rows });
+                }
+            });
+            resizeObserver.observe(document.getElementById('terminal'));
+        };
+
+        // Initialize WebSocket
+        app.initSocket = function() {
+            app.socket = io();
+            
+            app.socket.on('connect', () => {
+                app.terminal.write('\r\n\x1b[32m[Connected to server]\x1b[0m\r\n');
+                app.socket.emit('terminal.connect');
+            });
+            
+            app.socket.on('disconnect', () => {
+                app.terminal.write('\r\n\x1b[31m[Disconnected from server]\x1b[0m\r\n');
+            });
+            
+            app.socket.on('terminal.output', (data) => {
+                app.terminal.write(data.output);
+            });
+
+            app.socket.on('terminal.error', (data) => {
+                app.terminal.write(`\r\n\x1b[31mError: ${data.error}\x1b[0m\r\n`);
+            });
+        };
+
+        // Load files from server
+        app.loadFiles = async function() {
+            try {
+                const response = await fetch('/api/files');
+                const data = await response.json();
+                app.renderFileTree(data.files);
+            } catch (error) {
+                console.error('Failed to load files:', error);
+            }
+        };
+
+        // Render file tree
+        app.renderFileTree = function(files, container = null) {
+            if (!container) {
+                container = document.getElementById('file-tree');
+                container.innerHTML = '';
+            }
+
+            files.forEach(item => {
+                if (item.type === 'directory') {
+                    const folderDiv = document.createElement('div');
+                    folderDiv.className = 'folder-item';
+                    folderDiv.innerHTML = `<span class="folder-icon">📁</span> ${item.name}`;
+                    folderDiv.onclick = (e) => {
+                        e.stopPropagation();
+                        folderDiv.classList.toggle('collapsed');
+                    };
+                    container.appendChild(folderDiv);
+
+                    if (item.children && item.children.length > 0) {
+                        const childrenDiv = document.createElement('div');
+                        childrenDiv.className = 'folder-children';
+                        container.appendChild(childrenDiv);
+                        app.renderFileTree(item.children, childrenDiv);
+                    }
+                } else if (item.type === 'file') {
+                    const fileDiv = document.createElement('div');
+                    fileDiv.className = 'file-item';
+                    const icon = app.getFileIcon(item.extension);
+                    fileDiv.innerHTML = `<span class="file-icon">${icon}</span> ${item.name}`;
+                    fileDiv.onclick = () => app.openFile(item.path);
+                    container.appendChild(fileDiv);
+                }
+            });
+        };
+
+        // Get file icon based on extension
+        app.getFileIcon = function(ext) {
+            const icons = {
+                '.html': '🌐',
+                '.css': '🎨',
+                '.js': '📜',
+                '.json': '📋',
+                '.py': '🐍',
+                '.md': '📝',
+                '.txt': '📄',
+                '.sh': '⚙️'
+            };
+            return icons[ext] || '📄';
+        };
+
+        // Open file
+        app.openFile = async function(path) {
+            try {
+                const response = await fetch(`/api/files/${path}`);
+                const data = await response.json();
+                
+                if (data.content !== undefined) {
+                    app.currentFile = path;
+                    app.openFiles[path] = {
+                        content: data.content,
+                        name: data.name
+                    };
+                    
+                    // Detect language
+                    const ext = path.substring(path.lastIndexOf('.'));
+                    const langMap = {
+                        '.html': 'html',
+                        '.css': 'css',
+                        '.js': 'javascript',
+                        '.json': 'json',
+                        '.py': 'python',
+                        '.md': 'markdown',
+                        '.txt': 'plaintext',
+                        '.sh': 'shell'
+                    };
+                    const language = langMap[ext] || 'plaintext';
+                    
+                    // Update editor
+                    monaco.editor.setModelLanguage(app.editor.getModel(), language);
+                    app.editor.setValue(data.content);
+                    
+                    // Update tabs
+                    app.updateTabs();
+                    
+                    // Show preview for HTML
+                    if (ext === '.html') {
+                        app.showPreview();
+                        app.refreshPreview();
+                    }
+                    
+                    document.getElementById('status-left').textContent = `Opened: ${data.name}`;
+                }
+            } catch (error) {
+                console.error('Failed to open file:', error);
+                alert('Failed to open file');
+            }
+        };
+
+        // Save current file
+        app.saveCurrentFile = async function(silent = false) {
+            if (!app.currentFile) {
+                if (!silent) alert('No file open');
+                return;
+            }
+
+            const content = app.editor.getValue();
+            
+            try {
+                const response = await fetch(`/api/files/${app.currentFile}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ content })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    app.openFiles[app.currentFile].content = content;
+                    if (!silent) {
+                        document.getElementById('status-left').textContent = `Saved: ${app.currentFile}`;
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to save file:', error);
+                if (!silent) alert('Failed to save file');
+            }
+        };
+
+        // Create new file
+        app.newFile = async function() {
+            const filename = prompt('Enter filename (e.g., script.js):');
+            if (!filename) return;
+
+            try {
+                const response = await fetch(`/api/files/${filename}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ content: '' })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    await app.loadFiles();
+                    await app.openFile(filename);
+                }
+            } catch (error) {
+                console.error('Failed to create file:', error);
+                alert('Failed to create file');
+            }
+        };
+
+        // Create new folder
+        app.newFolder = async function() {
+            const foldername = prompt('Enter folder name:');
+            if (!foldername) return;
+
+            try {
+                const response = await fetch('/api/files/directory', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ path: foldername })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    await app.loadFiles();
+                }
+            } catch (error) {
+                console.error('Failed to create folder:', error);
+                alert('Failed to create folder');
+            }
+        };
+
+        // Refresh files
+        app.refreshFiles = async function() {
+            await app.loadFiles();
+            document.getElementById('status-left').textContent = 'Files refreshed';
+        };
+
+        // Update tabs
+        app.updateTabs = function() {
+            const tabsContainer = document.getElementById('tabs');
+            tabsContainer.innerHTML = '';
+            
+            Object.keys(app.openFiles).forEach(path => {
+                const tab = document.createElement('div');
+                tab.className = 'tab' + (path === app.currentFile ? ' active' : '');
+                tab.innerHTML = `
+                    ${app.openFiles[path].name}
+                    <span class="tab-close" onclick="app.closeFile('${path}', event)">×</span>
+                `;
+                tab.onclick = (e) => {
+                    if (!e.target.classList.contains('tab-close')) {
+                        app.switchToFile(path);
+                    }
+                };
+                tabsContainer.appendChild(tab);
+            });
+        };
+
+        // Switch to file
+        app.switchToFile = function(path) {
+            app.currentFile = path;
+            app.editor.setValue(app.openFiles[path].content);
+            app.updateTabs();
+        };
+
+        // Close file
+        app.closeFile = function(path, event) {
+            event.stopPropagation();
+            delete app.openFiles[path];
+            
+            if (app.currentFile === path) {
+                const remaining = Object.keys(app.openFiles);
+                if (remaining.length > 0) {
+                    app.switchToFile(remaining[0]);
+                } else {
+                    app.currentFile = null;
+                    app.editor.setValue('');
+                }
+            }
+            
+            app.updateTabs();
+        };
+
+        // Run code
+        app.runCode = async function() {
+            if (!app.currentFile) {
+                alert('No file open');
+                return;
+            }
+
+            const code = app.editor.getValue();
+            const ext = app.currentFile.substring(app.currentFile.lastIndexOf('.'));
+            
+            const langMap = {
+                '.py': 'python',
+                '.js': 'javascript',
+                '.sh': 'bash'
+            };
+            
+            const language = langMap[ext];
+            
+            if (!language) {
+                alert('Cannot execute this file type. Use terminal instead.');
+                return;
+            }
+
+            app.terminal.write('\r\n\x1b[36m[Executing...]\x1b[0m\r\n');
+
+            try {
+                const response = await fetch('/api/execute', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ code, language })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    if (data.stdout) {
+                        app.terminal.write(data.stdout);
+                    }
+                    if (data.stderr) {
+                        app.terminal.write(`\x1b[31m${data.stderr}\x1b[0m`);
+                    }
+                    app.terminal.write(`\r\n\x1b[32m[Execution completed with code ${data.returncode}]\x1b[0m\r\n`);
+                } else {
+                    app.terminal.write(`\r\n\x1b[31m[Error: ${data.error}]\x1b[0m\r\n`);
+                }
+            } catch (error) {
+                app.terminal.write(`\r\n\x1b[31m[Failed to execute]\x1b[0m\r\n`);
+            }
+        };
+
+        // Show/hide preview
+        app.showPreview = function() {
+            document.getElementById('preview-panel').style.display = 'flex';
+        };
+
+        app.togglePreview = function() {
+            const panel = document.getElementById('preview-panel');
+            panel.style.display = panel.style.display === 'none' ? 'flex' : 'none';
+        };
+
+        // Refresh preview
+        app.refreshPreview = function() {
+            const content = app.editor.getValue();
+            document.getElementById('preview-frame').srcdoc = content;
+        };
+
+        // Clear terminal
+        app.clearTerminal = function() {
+            app.terminal.clear();
+        };
+
+        // Logout
+        app.logout = async function() {
+            try {
+                await fetch('/api/auth/logout', { method: 'POST' });
+                location.reload();
+            } catch (error) {
+                location.reload();
+            }
+        };
+
+        // Check authentication on load
+        (async function() {
+            try {
+                const response = await fetch('/api/auth/status');
+                const data = await response.json();
+                
+                if (data.authenticated) {
+                    document.getElementById('login-screen').style.display = 'none';
+                    document.getElementById('editor-container').classList.add('active');
+                    document.getElementById('user-display').textContent = `👤 ${data.username}`;
+                    await app.init();
+                }
+            } catch (error) {
+                console.log('Not authenticated');
+            }
+        })();
+    </script>
+</body>
+</html>
